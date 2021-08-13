@@ -118,6 +118,8 @@ for epoch in range(params.load_index,params.n_epochs):
 			logger.log(f"loss_bound_{params.loss}",loss_bound,epoch*params.n_batches_per_epoch+i)
 			logger.log(f"loss_nav_{params.loss}",loss_nav,epoch*params.n_batches_per_epoch+i)
 			logger.log(f"regularize_grad_p",regularize_grad_p,epoch*params.n_batches_per_epoch+i)
+			logger.log(f"mean_vx",torch.mean(v_new[:,1:2]).numpy(),epoch*params.n_batches_per_epoch+i)
+			logger.log(f"mean_vy", torch.mean(v_new[:, 0:1]).numpy(), epoch * params.n_batches_per_epoch + i)
 			
 			if i%100 == 0:
 				print(f"{epoch}: i:{i}: loss: {loss}; loss_bound: {loss_bound}; loss_nav: {loss_nav};")

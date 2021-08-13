@@ -20,29 +20,29 @@ def toCpu(x):
 
 dx_kernel = toCuda(torch.Tensor([-0.5,0,0.5]).unsqueeze(0).unsqueeze(1).unsqueeze(2))
 def dx(v):
-	return F.conv2d(v,dx_kernel,padding=(0,1))
+	return F.conv2d(v,dx_kernel,padding=(0,1)) / params.space_unit
 
 dx_left_kernel = toCuda(torch.Tensor([-1,1,0]).unsqueeze(0).unsqueeze(1).unsqueeze(2))
 def dx_left(v):
-	return F.conv2d(v,dx_left_kernel,padding=(0,1))
+	return F.conv2d(v,dx_left_kernel,padding=(0,1)) / params.space_unit
 
 dx_right_kernel = toCuda(torch.Tensor([0,-1,1]).unsqueeze(0).unsqueeze(1).unsqueeze(2))
 def dx_right(v):
-	return F.conv2d(v,dx_right_kernel,padding=(0,1))
+	return F.conv2d(v,dx_right_kernel,padding=(0,1)) / params.space_unit
 
 # First order derivatives (d/dy)
 
 dy_kernel = toCuda(torch.Tensor([-0.5,0,0.5]).unsqueeze(0).unsqueeze(1).unsqueeze(3))
 def dy(v):
-	return F.conv2d(v,dy_kernel,padding=(1,0))
+	return F.conv2d(v,dy_kernel,padding=(1,0)) / params.space_unit
 
 dy_top_kernel = toCuda(torch.Tensor([-1,1,0]).unsqueeze(0).unsqueeze(1).unsqueeze(3))
 def dy_top(v):
-	return F.conv2d(v,dy_top_kernel,padding=(1,0))
+	return F.conv2d(v,dy_top_kernel,padding=(1,0)) / params.space_unit
 
 dy_bottom_kernel = toCuda(torch.Tensor([0,-1,1]).unsqueeze(0).unsqueeze(1).unsqueeze(3))
 def dy_bottom(v):
-	return F.conv2d(v,dy_bottom_kernel,padding=(1,0))
+	return F.conv2d(v,dy_bottom_kernel,padding=(1,0)) / params.space_unit
 
 # Curl operator
 
@@ -55,7 +55,7 @@ def rot_mac(a):
 #laplace_kernel = toCuda(torch.Tensor([[1,1,1],[1,-8,1],[1,1,1]]).unsqueeze(0).unsqueeze(1)) # 9 point stencil
 laplace_kernel = toCuda(0.25*torch.Tensor([[1,2,1],[2,-12,2],[1,2,1]]).unsqueeze(0).unsqueeze(1)) # isotropic 9 point stencil
 def laplace(v):
-	return F.conv2d(v,laplace_kernel,padding=(1,1))
+	return F.conv2d(v,laplace_kernel,padding=(1,1)) / (params.space_unit**2)
 
 
 # mapping operators

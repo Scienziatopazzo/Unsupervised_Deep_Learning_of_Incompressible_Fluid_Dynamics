@@ -59,6 +59,7 @@ def params():
 	parser.add_argument('--rho', default=1, type=float, help='fluid density rho')
 	parser.add_argument('--mu', default=1, type=float, help='fluid viscosity mu')
 	parser.add_argument('--dt', default=1, type=float, help='timestep of fluid integrator')
+	parser.add_argument('--space_unit', default=1, type=float, help='unit for spatial grid in meters')
 	
 	# Load parameters
 	parser.add_argument('--load_date_time', default=None, type=str, help='date_time of run to load (default: None)')
