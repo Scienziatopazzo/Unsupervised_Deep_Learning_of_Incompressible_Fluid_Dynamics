@@ -46,8 +46,9 @@ def dy_bottom(v):
 
 # Curl operator
 
+### IMPORTANT: IF SPACE_UNIT != 1, THEN ALL a's TRUE VALUES WILL BE SCALED BY 1 / params.space_unit
 def rot_mac(a):
-	return torch.cat([-dx_right(a),dy_bottom(a)],dim=1)
+	return torch.cat([-dx_right(a) * params.space_unit,dy_bottom(a) * params.space_unit],dim=1)
 
 # Laplace operator
 

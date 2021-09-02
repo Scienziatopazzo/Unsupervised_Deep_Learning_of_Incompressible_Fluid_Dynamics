@@ -75,8 +75,8 @@ for epoch in range(params.load_index,params.n_epochs):
 			v = (v_new+v_old)/2
 		
 		# compute loss for momentum equation
-		loss_nav =  torch.mean(loss_function(flow_mask_mac*(rho*((v_new[:,1:2]-v_old[:,1:2])/dt+v[:,1:2]*dx(v[:,1:2])+0.5*(map_vy2vx_top(v[:,0:1])*dy_top(v[:,1:2])+map_vy2vx_bottom(v[:,0:1])*dy_bottom(v[:,1:2])))+dx_left(p_new)-mu*laplace(v[:,1:2])))[:,:,1:-1,1:-1],dim=(1,2,3))+\
-					torch.mean(loss_function(flow_mask_mac*(rho*((v_new[:,0:1]-v_old[:,0:1])/dt+v[:,0:1]*dy(v[:,0:1])+0.5*(map_vx2vy_left(v[:,1:2])*dx_left(v[:,0:1])+map_vx2vy_right(v[:,1:2])*dx_right(v[:,0:1])))+dy_top(p_new)-mu*laplace(v[:,0:1])))[:,:,1:-1,1:-1],dim=(1,2,3))
+		loss_nav =  torch.mean(loss_function(params.loss_nav_scaler * flow_mask_mac*(rho*((v_new[:,1:2]-v_old[:,1:2])/dt+v[:,1:2]*dx(v[:,1:2])+0.5*(map_vy2vx_top(v[:,0:1])*dy_top(v[:,1:2])+map_vy2vx_bottom(v[:,0:1])*dy_bottom(v[:,1:2])))+dx_left(p_new)-mu*laplace(v[:,1:2])))[:,:,1:-1,1:-1],dim=(1,2,3))+\
+					torch.mean(loss_function(params.loss_nav_scaler * flow_mask_mac*(rho*((v_new[:,0:1]-v_old[:,0:1])/dt+v[:,0:1]*dy(v[:,0:1])+0.5*(map_vx2vy_left(v[:,1:2])*dx_left(v[:,0:1])+map_vx2vy_right(v[:,1:2])*dx_right(v[:,0:1])))+dy_top(p_new)-mu*laplace(v[:,0:1])))[:,:,1:-1,1:-1],dim=(1,2,3))
 		
 		regularize_grad_p = torch.mean((dx_right(p_new)**2+dy_bottom(p_new)**2)[:,:,2:-2,2:-2],dim=(1,2,3))
 		
@@ -118,8 +118,10 @@ for epoch in range(params.load_index,params.n_epochs):
 			logger.log(f"loss_bound_{params.loss}",loss_bound,epoch*params.n_batches_per_epoch+i)
 			logger.log(f"loss_nav_{params.loss}",loss_nav,epoch*params.n_batches_per_epoch+i)
 			logger.log(f"regularize_grad_p",regularize_grad_p,epoch*params.n_batches_per_epoch+i)
-			logger.log(f"mean_vx",torch.mean(v_new[:,1:2]).numpy(),epoch*params.n_batches_per_epoch+i)
-			logger.log(f"mean_vy", torch.mean(v_new[:, 0:1]).numpy(), epoch * params.n_batches_per_epoch + i)
+			logger.log(f"mean_vx",torch.mean(v_new[:,1:2]).cpu().detach().numpy(),epoch*params.n_batches_per_epoch+i)
+			logger.log(f"mean_vy", torch.mean(v_new[:, 0:1]).cpu().detach().numpy(), epoch * params.n_batches_per_epoch + i)
+			logger.log(f"mean_a", torch.mean(a_new).cpu().detach().numpy(), epoch * params.n_batches_per_epoch + i)
+			logger.log(f"mean_p", torch.mean(p_new).cpu().detach().numpy(), epoch * params.n_batches_per_epoch + i)
 			
 			if i%100 == 0:
 				print(f"{epoch}: i:{i}: loss: {loss}; loss_bound: {loss_bound}; loss_nav: {loss_nav};")

@@ -1,6 +1,6 @@
 import torch
 from torch import nn
-from derivatives import rot_mac
+from derivatives import rot_mac, params
 import torch.nn.functional as F
 from unet_parts import *
 

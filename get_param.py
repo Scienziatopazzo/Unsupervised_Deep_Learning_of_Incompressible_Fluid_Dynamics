@@ -50,6 +50,7 @@ def params():
 	parser.add_argument('--loss', default='square', type=str, help='loss type to train network (default: square)',choices=['square'])
 	parser.add_argument('--loss_multiplier', default=1, type=float, help='multiply loss / gradients (default: 1)')
 	parser.add_argument('--target_freq', default=7, type=float, help='target frequency of optimal control algorithm (default: 7; choose value between 2-8)')
+	parser.add_argument('--loss_nav_scaler', default=1, type=float, help='multiplier for the nav loss, within the squared norm / other loss (default: 1)')
 
 	# Setup parameters
 	parser.add_argument('--width', default=300, type=int, help='setup width')
