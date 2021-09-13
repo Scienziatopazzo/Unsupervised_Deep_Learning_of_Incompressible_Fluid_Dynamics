@@ -35,13 +35,15 @@ pde_cnn.eval()
 print(f"loaded {params.net}: {date_time}, index: {index}")
 
 # setup opencv windows for in depth visualizations
-cv2.namedWindow('legend',cv2.WINDOW_NORMAL)
-vector = toCuda(torch.cat([torch.arange(-1,1,0.01).unsqueeze(0).unsqueeze(2).repeat(1,1,200),torch.arange(-1,1,0.01).unsqueeze(0).unsqueeze(1).repeat(1,200,1)]))
-image = vector2HSV(vector)
-image = cv2.cvtColor(image,cv2.COLOR_HSV2BGR)
-cv2.imshow('legend',image)
-cv2.namedWindow('p',cv2.WINDOW_NORMAL)
-cv2.namedWindow('v',cv2.WINDOW_NORMAL)
+live_visualize = False
+if live_visualize:
+	cv2.namedWindow('legend',cv2.WINDOW_NORMAL)
+	vector = toCuda(torch.cat([torch.arange(-1,1,0.01).unsqueeze(0).unsqueeze(2).repeat(1,1,200),torch.arange(-1,1,0.01).unsqueeze(0).unsqueeze(1).repeat(1,200,1)]))
+	image = vector2HSV(vector)
+	image = cv2.cvtColor(image,cv2.COLOR_HSV2BGR)
+	cv2.imshow('legend',image)
+	cv2.namedWindow('p',cv2.WINDOW_NORMAL)
+	cv2.namedWindow('v',cv2.WINDOW_NORMAL)
 
 #generate environment for fluid simulation
 def get_problem(w,h,object_x=50,object_y=50,object_w=5,object_h=10):
@@ -78,11 +80,11 @@ velocity_y_curve_scaler = torch.exp(-((toCuda(torch.arange(n_time_steps).unsquee
 # optimization loop:
 for epoch in range(200):
 	v_cond,cond_mask,flow_mask,a_old,p_old = get_problem(w,h)
-	
+
 	v_cond = normal2staggered(v_cond)
 	cond_mask_mac = (normal2staggered(cond_mask.repeat(1,2,1,1))==1).float()
 	flow_mask_mac = (normal2staggered(flow_mask.repeat(1,2,1,1))>=0.5).float()
-	
+
 	# warm up simulation with n_warmup_time_steps
 	with torch.no_grad():
 		for t in range(n_warmup_time_steps):
@@ -90,26 +92,26 @@ for epoch in range(200):
 			p_new = (p_new-torch.mean(p_new,dim=(1,2,3)).unsqueeze(1).unsqueeze(2).unsqueeze(3))
 			a_new = (a_new-torch.mean(a_new,dim=(1,2,3)).unsqueeze(1).unsqueeze(2).unsqueeze(3))
 			a_old, p_old = a_new, p_new
-	
+
 	# simulation that should be used for gradient propagation
 	velocity_y_curve = toCuda(torch.zeros(n_time_steps,2))
 	for t in range(n_time_steps):
 		a_new,p_new = pde_cnn(a_old,p_old,flow_mask,start_v*flow_v*v_cond,cond_mask)
 		p_new = (p_new-torch.mean(p_new,dim=(1,2,3)).unsqueeze(1).unsqueeze(2).unsqueeze(3))
 		a_new = (a_new-torch.mean(a_new,dim=(1,2,3)).unsqueeze(1).unsqueeze(2).unsqueeze(3))
-		
+
 		v_new = rot_mac(a_new)
 		v_new = cond_mask_mac*v_cond*flow_v*start_v+flow_mask_mac*v_new
 		velocity_y_curve[t,0] = torch.mean(v_new[0,0:1,40:(h-40),80:100])
-		
+
 		# visualize simulation progress
-		if t%10==0:
+		if live_visualize and t%10==0:
 			with torch.no_grad():
 				p = flow_mask[0,0]*p_new[0,0].clone()
 				p = p-torch.min(p)
 				p = p/torch.max(p)
 				cv2.imshow('p',toCpu(p).numpy())
-				
+
 				vector = staggered2normal(v_new)[0].clone()
 				image = vector2HSV(vector.detach())
 				image = cv2.cvtColor(image,cv2.COLOR_HSV2BGR)
@@ -118,31 +120,48 @@ for epoch in range(200):
 				image[40,80:100]=255
 				image[(h-40),80:101]=255
 				cv2.imshow('v',image)
-				
+
 				key = cv2.waitKey(1)
-		
+
 		a_old, p_old = a_new, p_new
-	
+
+	def my_fft(input, signal_ndim, normalized=False):
+		if signal_ndim < 1 or signal_ndim > 3:
+			print("Signal ndim out of range, was", signal_ndim, "but expected a value between 1 and 3, inclusive")
+			return
+
+		dims = (-1)
+		if signal_ndim == 2:
+			dims = (-2, -1)
+		if signal_ndim == 3:
+			dims = (-3, -2, -1)
+
+		norm = "backward"
+		if normalized:
+			norm = "ortho"
+
+		return torch.view_as_real(torch.fft.fftn(torch.view_as_complex(input), dim=dims, norm=norm))
+
 	# compute expectation value of vortex shedding frequency
-	fft_y_curve = torch.sum(torch.fft(velocity_y_curve*velocity_y_curve_scaler,signal_ndim=1,normalized=True)**2,dim=1)
+	fft_y_curve = torch.sum(my_fft(velocity_y_curve*velocity_y_curve_scaler,signal_ndim=1,normalized=True)**2,dim=1)
 	norm_fft_y_curve = fft_y_curve[:15]/torch.sum(fft_y_curve[:15])
 	E_fft_y = torch.sum(norm_fft_y_curve*torch.arange(0,15).cuda())
-	
+
 	# loss function to push vortex shedding frequency towards target frequency
 	loss = (E_fft_y-target_freq)**2
-	
-	# propagate gradients throughout simulation and optimize 
+
+	# propagate gradients throughout simulation and optimize
 	optim.zero_grad()
 	loss.backward()
 	optim.step()
-	
+
 	print(f"iteration {epoch}: E_fft_y = {E_fft_y}")
 	E_fft_ys.append(E_fft_y.detach().cpu().numpy())
-	
+
 	# plot optimization progress
 	font = {'family':'normal','weight':'bold','size':22}
 	matplotlib.rc('font',**font)
-	
+
 	plt.figure(1)
 	plt.clf()
 	plt.plot((velocity_y_curve)[:,0].detach().cpu().numpy(),linestyle="dashed",color="r")
@@ -153,7 +172,7 @@ for epoch in range(200):
 	plt.ylabel("$v_y$")
 	plt.legend(["$v_y(t)$","gaussian $\cdot v_y(t)$"])
 	plt.subplots_adjust(left=0.23,bottom=0.17)
-	
+
 	plt.figure(2)
 	plt.clf()
 	fft_y_curve = fft_y_curve / torch.max(fft_y_curve)
@@ -166,7 +185,7 @@ for epoch in range(200):
 	plt.ylabel("$|V_y|^2$")
 	plt.legend(["$|V_y(f)|^2$","$E[|V_y(f)|^2]$","target"])
 	plt.subplots_adjust(left=0.23,bottom=0.17)
-	
+
 	plt.figure(3)
 	plt.clf()
 	plt.plot(E_fft_ys,color="r")
@@ -177,5 +196,5 @@ for epoch in range(200):
 	plt.ylabel("frequency")
 	plt.subplots_adjust(left=0.23,bottom=0.17)
 	plt.pause(0.0001)
-	
+
 	del v_cond,cond_mask,flow_mask,a_new,p_new,a_old,p_old,velocity_y_curve,v_new
