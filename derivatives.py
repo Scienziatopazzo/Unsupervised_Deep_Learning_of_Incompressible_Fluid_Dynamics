@@ -110,14 +110,16 @@ def mean_bottom(v):
 
 
 def staggered2normal(v):
-	v[:,0:1] = mean_left(v[:,0:1])
-	v[:,1:2] = mean_top(v[:,1:2])
-	return v
+	ret = torch.clone(v)
+	ret[:,0:1] = mean_left(v[:,0:1])
+	ret[:,1:2] = mean_top(v[:,1:2])
+	return ret
 
 def normal2staggered(v):#CODO: double-check that! -> seems correct
-	v[:,0:1] = mean_right(v[:,0:1])
-	v[:,1:2] = mean_bottom(v[:,1:2])
-	return v
+	ret = torch.clone(v)
+	ret[:,0:1] = mean_right(v[:,0:1])
+	ret[:,1:2] = mean_bottom(v[:,1:2])
+	return ret
 
 
 
@@ -128,7 +130,7 @@ def vector2HSV(vector,plot_sqrt=False):
 	:return: hsv (hue: direction of vector; saturation: 1; value: abs value of vector)
 	"""
 	values = torch.sqrt(torch.sum(torch.pow(vector,2),dim=0)).unsqueeze(0)
-	saturation = torch.ones(values.shape).cuda()
+	saturation = torch.ones(values.shape).cuda(current_cuda)
 	norm = vector/(values+0.000001)
 	angles = torch.asin(norm[0])+math.pi/2
 	angles[norm[1]<0] = 2*math.pi-angles[norm[1]<0]
